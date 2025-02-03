@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Обробка файлу XLSX</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+        input, button, textarea {
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        #status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Підрахунок значень (0–4) з файлу XLSX</h1>
+        <label for="fileInput">Завантажте файл XLSX:</label>
+        <input type="file" id="fileInput" accept=".xlsx">
+        <button id="processButton">Обробити</button>
+        <textarea id="output" rows="6" placeholder="Результат з'явиться тут"></textarea>
+        <button id="copyButton">Копіювати результат</button>
+        <div id="status"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        document.getElementById('processButton').addEventListener('click', processFile);
+        document.getElementById('copyButton').addEventListener('click', copyToClipboard);
+
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            const output = document.getElementById('output');
+            const status = document.getElementById('status');
+
+            if (!fileInput.files.length) {
+                alert("Будь ласка, завантажте файл XLSX.");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            status.textContent = "Обробка файлу...";
+
+            reader.onload = function(event) {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    const filteredColumns = rows.map(row => row.slice(3, 11));
+
+                    const counts = [];
+                    const columnSums = [];
+
+                    for (let col = 0; col < 8; col++) {
+                        const columnCounts = [0, 0, 0, 0, 0];
+                        let columnSum = 0;
+
+                        for (let row = 1; row < filteredColumns.length; row++) {
+                            const value = parseInt(filteredColumns[row][col], 10);
+                            if (value >= 0 && value <= 4) {
+                                columnCounts[value]++;
+                                columnSum++;
+                            }
+                        }
+
+                        counts.push(...columnCounts);
+                        columnSums.push(columnSum);
+                    }
+
+                    const result = counts.join("\t") + "\t" + columnSums.join("\t");
+                    output.value = result;
+
+                    status.textContent = "Обробка завершена!";
+                } catch (error) {
+                    console.error(error);
+                    status.textContent = "Помилка при обробці файлу!";
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function copyToClipboard() {
+            const output = document.getElementById('output');
+            output.select();
+            document.execCommand("copy");
+            alert("Результат скопійовано в буфер обміну!");
+        }
+    </script>
+</body>
+</html>
